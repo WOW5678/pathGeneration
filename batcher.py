@@ -89,5 +89,8 @@ class Example(object):
             self.ehr = self.ehr[:max_len]
 
 
+class DisBatcher(object):
+    def __init__(self,args,data):
+        pass
 
 

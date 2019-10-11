@@ -8,7 +8,7 @@
 import csv
 import numpy as np
 
-def findrange(icd,level,parient_child,level2_parient):
+def findrange(icd,level,parient_child):
 
     for item in level:
         if '-' in item:
@@ -26,13 +26,11 @@ def findrange(icd,level,parient_child,level2_parient):
             if icd.startswith('E') or icd.startswith('V'):
                 if int(icd[1:])==int(item[1:]):
                     parient_child.append((item,icd))
-                    level2_parient.append(item)
                     return item
             else:
                 # 不是以E或者V开头的
                 if int(icd)==int(item):
                     parient_child.append((item,icd))
-                    level2_parient.append(item)
                     return item
 
 def build_tree(filepath):
@@ -75,15 +73,14 @@ def build_tree(filepath):
 
     allICDS_=list(set(allICDS))
     allICDS_.sort(key=allICDS.index)
-    print('write to file:')
-    with open('data/allICDs.csv','w') as f:
-        writer=csv.writer(f)
-        for item in allICDS_:
-            writer.writerow([item])
+    # print('write to file:')
+    # with open('data/allICDs.csv','w') as f:
+    #     writer=csv.writer(f)
+    #     for item in allICDS_:
+    #         writer.writerow([item])
 
     #针对EHR中出现的每个icd code 找到它的所有父节点，以(parient,child)形式保存
     parient_child=[]
-    level2_parient=[]
     hier_icds={}
     for icd in allICDS_:
         hier_icd=[icd]
@@ -99,7 +96,7 @@ def build_tree(filepath):
                     parient_child.append((tokens[0],icd))
                     hier_icd.insert(0,tokens[0])
                     # 找到E824 对应的范围
-                    parient=findrange(tokens[0],level2_E,parient_child,level2_parient)
+                    parient=findrange(tokens[0],level2_E,parient_child)
                     hier_icd.insert(0, parient)
 
                 elif len(tokens[1])==2:
@@ -108,7 +105,7 @@ def build_tree(filepath):
                     hier_icd.insert(0, icd[:-1])
                     parient_child.append((tokens[0],icd[:-1])) #（E939，E939.5）
                     hier_icd.insert(0, tokens[0])
-                    parient=findrange(tokens[0],level2_E,parient_child,level2_parient)
+                    parient=findrange(tokens[0],level2_E,parient_child)
                     hier_icd.insert(0, parient)
 
         # 先判断icd中是否包含V ,例如：V85.54 or V86.0
@@ -122,7 +119,7 @@ def build_tree(filepath):
                     parient_child.append((tokens[0], icd))
                     hier_icd.insert(0, tokens[0])
                     # 找到E824 对应的范围
-                    parient=findrange(tokens[0], level2_V, parient_child,level2_parient)
+                    parient=findrange(tokens[0], level2_V, parient_child)
                     hier_icd.insert(0, parient)
 
                 elif len(tokens[1]) == 2:
@@ -131,7 +128,7 @@ def build_tree(filepath):
                     hier_icd.insert(0, icd[:-1])
                     parient_child.append((tokens[0], icd[:-1]))  # （E939，E939.5）
                     hier_icd.insert(0, tokens[0])
-                    parient=findrange(tokens[0], level2_V, parient_child,level2_parient)
+                    parient=findrange(tokens[0], level2_V, parient_child)
                     hier_icd.insert(0, parient)
         else:
             # 先判断是否包含小数点：
@@ -143,7 +140,7 @@ def build_tree(filepath):
                     parient_child.append((tokens[0], icd))
                     hier_icd.insert(0, tokens[0])
                     # 找到E824 对应的范围
-                    parient=findrange(tokens[0], level2, parient_child,level2_parient)
+                    parient=findrange(tokens[0], level2, parient_child)
                     hier_icd.insert(0, parient)
                 elif len(tokens[1]) == 2:
                     # 去掉小数点后得到会得到三层的父节点
@@ -151,21 +148,21 @@ def build_tree(filepath):
                     hier_icd.insert(0, icd[:-1])
                     parient_child.append((tokens[0], icd[:-1]))  # （E939，E939.5）
                     hier_icd.insert(0, tokens[0])
-                    parient=findrange(tokens[0], level2, parient_child,level2_parient)
+                    parient=findrange(tokens[0], level2, parient_child)
                     hier_icd.insert(0, parient)
         if icd not in hier_icds:
             hier_icds[icd]=hier_icd
 
+    level2_parient=[]
+    for key,value in hier_icds.items():
+        level2_parient.append(value[0])
 
-    # print(parient_child)
-    # print('level2_parients:',level2_parient)
-    # 把所有相关的节点转换成id的形式
 
     nodes = []
     for row in parient_child:
         if row[0] not in nodes:
             nodes.append(row[0])
-        if row not in nodes:
+        if row[1] not in nodes:
             nodes.append(row[1])
 
     nodes=nodes + allICDS_

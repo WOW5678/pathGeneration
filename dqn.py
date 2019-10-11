@@ -14,7 +14,7 @@ import torch.autograd as autograd
 import torch.nn.functional as F
 
 USE_CUDA=torch.cuda.is_available()
-device = ("cuda:1" if torch.cuda.is_available() else 'cpu')
+device = ("cuda:2" if torch.cuda.is_available() else 'cpu')
 
 Variable=lambda *args,**kwargs:autograd.Variable(*args,**kwargs).to(device)
 
@@ -46,77 +46,94 @@ class DQN(object):
         self.eval_net.to(args.device)
         self.target_net.to(args.device)
 
-    def act(self,state,action_space,children_len):
+    def act(self,state,action_space,children_len,eval_flag=False):
         # 针对的是一个样本
-        action_values=[]
+        action_values=[] # q值用来训练模型 score值用来选择路径
+        action_scores=[]
         actions_k=[]
         action_indexs=[]
 
         q_value = self.eval_net(state)  #[B,72] # 第一个hops时是[1,101]，后面每个hop都是[5,101]
-        # print('children_len:',children_len)
-        # print('q_value:',q_value)
-        # scores=[F.softmax(q_value[i][children_len[i]]) for i in range(len(children_len))]
-        # print('scores:',scores)
 
+        # 测试过程 只选择q_value最大的数据 没有随机性
+        if eval_flag:
+            self.epsilon=99999
+        else:
+            self.epsilon=0.5
         if random.random()<self.epsilon:
             # action_value:[1,5],actionInds:[1,5]
             for i in range(len(action_space)):
-                # action_value shape:[1,5],actionIds shape:[1,5]
-                #x=q_value[0][:children_len[i]]
-                #print('x:',x.shape)
-
                 # action shape,actionIds shape:[1,5]
                 if children_len[i]>self.args.k:
                     # print('children_len[i]:',children_len[i])
                     # print('q_value[0][:children_len[i]]:',q_value[0][:children_len[i]])
+                    score=F.softmax(q_value[0][:children_len[i]]) # 在所有孩子节点上得到一个概率分布
                     action_value,actionInds=torch.topk(q_value[0][:children_len[i]],self.args.k)
 
                     # print('action_value:',action_value) #[0.1316, 0.1185, 0.1068, 0.1000, 0.0992]
                     # print('actionInds:', actionInds)  # [94,  6, 55, 16, 73]
                     actions = action_space[i][actionInds]
                     # print('actions:', actions)  # [8190, 4546, 8179, 8190, 5937]
+                    action_score,_=torch.topk(score,self.args.k)
 
+                elif children_len[i]==0: # 说明父节点就是叶子节点 没有孩子节点 则直接选择第一个孩子（PAD） (使用action==0进行填充)
+                    score = F.softmax(q_value[0])
+                    action_value=[q_value[0][-1]] #  取最后的一个action
+                    actions = torch.Tensor([self.args.node2id.get('PAD')]).long().to(self.args.device)
+                    actionInds = torch.Tensor([self.args.max_children_num - 1]).long().to(self.args.device)
+                    action_score = [score[-1]]
+                    #continue
 
-                elif children_len[i]==0: # 说明就是叶子节点 则不需要选择action (使用action==0进行填充)
-                    action_value=torch.zeros(1).float().to(self.args.device)
-                    actions=torch.Tensor([0]).long().to(self.args.device)
-                    actionInds=torch.Tensor([0]).long().to(self.args.device)
-
-                else:
-                    # print('children_len[i]:', children_len[i])
-                    # print('q_value[0]:', q_value[0])
+                else: # 孩子个数不足beam search的宽度
+                    score = F.softmax(q_value[0][:children_len[i]])
                     action_value,actionInds=torch.topk(q_value[0][:children_len[i]],children_len[i])
-
-                    # print('action_value:',action_value) #[0.1316, 0.1185, 0.1068, 0.1000, 0.0992]
-                    # print('actionInds:',actionInds) #[94,  6, 55, 16, 73]
                     actions=action_space[i][actionInds]
-                    #print('actions:',actions) #[8190, 4546, 8179, 8190, 5937]
+                    action_score, _ = torch.topk(score, children_len[i])
 
                 action_values.append(action_value)
+                action_scores.append(action_score)
                 actions_k.append(actions)
                 action_indexs.append(actionInds.data.cpu().numpy())
-            return action_values,actions_k,action_indexs
+            return action_values,action_scores,actions_k,action_indexs
 
         else:
             # 随机选择出K个action(不重复)
             for i in range(len(action_space)):
-                if children_len[i]==0:
-                    action_value = torch.zeros(1).float().to(self.args.device)
-                    actions = torch.Tensor([0]).long().to(self.args.device)
-                    actionInds = torch.Tensor([0]).long().to(self.args.device)
-                else:
+                if children_len[i]==0: #没有孩子节点的话 直接选择第一个pad的节点
+                    score = F.softmax(q_value[0])
+                    action_value =[q_value[0][-1]]
+                    actions = torch.Tensor([self.args.node2id.get('PAD')]).long().to(self.args.device)
+                    actionInds = torch.Tensor([self.args.max_children_num-1]).long().to(self.args.device)
+                    action_score = [score[-1]]
+                    #continue
+
+                else: # 从孩子节点中随机选择
+                    score = F.softmax(q_value[0][:children_len[i]])
                     actionInds=torch.randperm(children_len[i])[:self.args.k]
                     actions=action_space[i][actionInds].to(self.args.device)
                     action_value=q_value[0][actionInds].to(self.args.device)
+                    action_score = score[actionInds].to(self.args.device)
 
                 action_values.append(action_value)
+                action_scores.append(action_score)
                 actions_k.append(actions)
                 action_indexs.append(actionInds.data.cpu().numpy())
-            return action_values,actions_k,action_indexs
+            return action_values,action_scores,actions_k,action_indexs
+
+    def teacher_forcing(self,state,action_space,children_len,correctAction):
+        # 针对的是一个样本
+        q_value = self.eval_net(state)  #[B,72] # 第一个hops时是[1,101]，后面每个hop都是[5,101]
+
+        # 直接选择出对的action
+        # 先找出孩子的index
+        actionInd=action_space[0].index(correctAction)
+        action_value=q_value[0][actionInd]
+        return actionInd,action_value
 
     # 同步current policy 与target net
     def update_target(self):
         self.target_net.load_state_dict(self.eval_net.state_dict())
+
 
     def update(self):
 

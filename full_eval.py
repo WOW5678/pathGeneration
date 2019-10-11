@@ -55,10 +55,12 @@ def recall_at_k(probs, labels, k, average='micro'):
     return recall_score(labels, preds, average=average)
 
 
-def full_evaluate(pred,probs, gold, thres=0.5):
-    # pred = np.array(pred)
-    # gold = np.array(gold)
+def full_evaluate(pred, gold, thres=0.5):
+    pred = np.array(pred)
+    gold = np.array(gold)
     #print(pred)
+    # print('pred:',pred)
+    # print('gold:',gold)
     micro_p, micro_r, micro_f1 = f1_score(pred, gold, thres, average='micro')
     macro_p,macro_r,macro_f1= f1_score(pred, gold, thres, average='macro')
 
@@ -68,13 +70,14 @@ def full_evaluate(pred,probs, gold, thres=0.5):
     micro_auc_roc= auc_roc(pred, gold, average='micro')
     macro_auc_roc= auc_roc(pred, gold, average='macro')
 
-    precision_8= precision_at_k(probs, gold, 8, average='micro')
-    precision_40= precision_at_k(probs, gold, 40, average='micro')
-
-    recall_8= recall_at_k(probs, gold, 8, average='micro')
-    recall_40=recall_at_k(probs, gold, 40, average='micro')
+    # precision_8= precision_at_k(probs, gold, 8, average='micro')
+    # precision_40= precision_at_k(probs, gold, 40, average='micro')
+    #
+    # recall_8= recall_at_k(probs, gold, 8, average='micro')
+    # recall_40=recall_at_k(probs, gold, 40, average='micro')
     
-    return micro_p,macro_p,micro_r,macro_r,micro_f1,macro_f1,micro_auc_roc,macro_auc_roc,precision_8,precision_40,recall_8,recall_40
+    #return micro_p,macro_p,micro_r,macro_r,micro_f1,macro_f1,micro_auc_roc,macro_auc_roc,precision_8,precision_40,recall_8,recall_40
+    return micro_p, macro_p, micro_r, macro_r, micro_f1, macro_f1, micro_auc_roc, macro_auc_roc
 
 
 def jaccrad(predList, referList):  # terms_reference为源句子，terms_model为候选句子

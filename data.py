@@ -10,6 +10,7 @@ from nltk.corpus import stopwords
 from string  import punctuation
 import os
 from  collections import Counter
+import pickle
 
 PAD_TOKEN='[PAD]'
 UNKNOWN_TOKEN='[UNK]'
@@ -33,15 +34,29 @@ class Data(object):
         self.patientDescribs=[]
         self.labels=[]
 
-        with open(os.path.join(datafolder, 'note_labeled.csv')) as f:
-            reader = csv.reader(f)
-            next(reader)
-            data = [row for row in reader]
-            for row in data[:500]:
-                str = processEHR(row[2])
-                self.patientDescribs.append(str)
-                patientWords.extend(str.split())
-                self.labels.append(row[3].strip())
+        if os.path.exists(os.path.join(datafolder,'patientDescribes_labels.pkl')):
+            with open(os.path.join(datafolder,'patientDescribes_labels.pkl'),'rb') as f:
+                self.patientDescribs, self.labels=pickle.load(f)
+            with open(os.path.join(datafolder,'patientWords.pkl'),'rb') as f:
+                patientWords=pickle.load(f)
+        else:
+
+            with open(os.path.join(datafolder, 'note_labeled.csv')) as f:
+                reader = csv.reader(f)
+                next(reader)
+                data = [row for row in reader]
+                for row in data[:500]:
+                    str = processEHR(row[2])
+                    self.patientDescribs.append(str)
+                    patientWords.extend(str.split())
+                    self.labels.append(row[3].strip())
+
+            # 将处理好的数据保存下来  进行第二次使用
+            with open(os.path.join(datafolder,'patientDescribes_labels.pkl'),'wb') as f:
+                pickle.dump([self.patientDescribs,self.labels],f)
+            with open(os.path.join(datafolder,'patientWords.pkl'),'wb') as f:
+                pickle.dump(patientWords,f)
+
 
         # 对patientWords按照频率进行排序，将最频繁的max_size-2个单词加入到vocab中去
         patientWords = Counter(patientWords)
@@ -71,7 +86,7 @@ class Data(object):
     def size(self):
         return len(self._word2id)
     
-    
+
 
     
 

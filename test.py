@@ -9,9 +9,10 @@ import numpy  as np
 import torch
 import random
 from torch.autograd import Variable
-#from itertools import ifilter
-a=[[1,2,3,4,5,0,0,0],[2,2,4,0,0]]
-[row.reverse() for row in a]
-print(a)
+from keras.utils import to_categorical
 
-print([next(x for x in row if x >0) for row in a])
+data=[1,2,3,2,1,0]
+# 去重
+data=list(set(data))
+encoded=to_categorical(data,num_classes=5)
+print(sum(encoded))
