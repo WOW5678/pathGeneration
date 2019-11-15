@@ -1,18 +1,18 @@
 # -*- coding:utf-8 -*-
 """
-@Time: 2019/09/27 10:51
+@Time: 2019/09/03 10:56
 @Author: Shanshan Wang
 @Version: Python 3.7
-@Function:
+@Function: 实现分层的DQN网络
 """
-import numpy  as np
 import torch
-import random
-from torch.autograd import Variable
-from keras.utils import to_categorical
+import copy
 
-data=[1,2,3,2,1,0]
-# 去重
-data=list(set(data))
-encoded=to_categorical(data,num_classes=5)
-print(sum(encoded))
+import random
+import math
+import numpy as np
+
+a=[[1],[2]]
+for row in a:
+    if [1] in row:
+        print(row)

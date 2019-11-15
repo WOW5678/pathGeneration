@@ -15,6 +15,7 @@ import pickle
 PAD_TOKEN='[PAD]'
 UNKNOWN_TOKEN='[UNK]'
 ROOT='ROOT'
+
 def processEHR(str):
     #对字符串进行预处理操作
     str=str.lower() #全部转化为小写
@@ -35,17 +36,18 @@ class Data(object):
         self.labels=[]
 
         if os.path.exists(os.path.join(datafolder,'patientDescribes_labels.pkl')):
+            print('datafolder:',datafolder)
             with open(os.path.join(datafolder,'patientDescribes_labels.pkl'),'rb') as f:
                 self.patientDescribs, self.labels=pickle.load(f)
             with open(os.path.join(datafolder,'patientWords.pkl'),'rb') as f:
                 patientWords=pickle.load(f)
         else:
 
-            with open(os.path.join(datafolder, 'note_labeled.csv')) as f:
+            with open(os.path.join(datafolder, 'note_labeled_v2.csv')) as f:
                 reader = csv.reader(f)
                 next(reader)
                 data = [row for row in reader]
-                for row in data[:500]:
+                for row in data:
                     str = processEHR(row[2])
                     self.patientDescribs.append(str)
                     patientWords.extend(str.split())

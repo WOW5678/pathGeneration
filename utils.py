@@ -25,13 +25,13 @@ def findrange(icd,level,parient_child):
         else:
             if icd.startswith('E') or icd.startswith('V'):
                 if int(icd[1:])==int(item[1:]):
-                    parient_child.append((item,icd))
-                    return item
+                    #parient_child.append((item,icd))
+                    return False
             else:
                 # 不是以E或者V开头的
                 if int(icd)==int(item):
-                    parient_child.append((item,icd))
-                    return item
+                    #parient_child.append((item,icd))
+                    return False
 
 def build_tree(filepath):
 
@@ -97,7 +97,8 @@ def build_tree(filepath):
                     hier_icd.insert(0,tokens[0])
                     # 找到E824 对应的范围
                     parient=findrange(tokens[0],level2_E,parient_child)
-                    hier_icd.insert(0, parient)
+                    if parient!=False:
+                        hier_icd.insert(0, parient)
 
                 elif len(tokens[1])==2:
                     #去掉小数点后得到会得到三层的父节点
@@ -106,7 +107,8 @@ def build_tree(filepath):
                     parient_child.append((tokens[0],icd[:-1])) #（E939，E939.5）
                     hier_icd.insert(0, tokens[0])
                     parient=findrange(tokens[0],level2_E,parient_child)
-                    hier_icd.insert(0, parient)
+                    if parient!=False:
+                        hier_icd.insert(0, parient)
 
         # 先判断icd中是否包含V ,例如：V85.54 or V86.0
         elif icd.startswith('V'):
@@ -120,7 +122,9 @@ def build_tree(filepath):
                     hier_icd.insert(0, tokens[0])
                     # 找到E824 对应的范围
                     parient=findrange(tokens[0], level2_V, parient_child)
-                    hier_icd.insert(0, parient)
+                    if parient!=False:
+                        hier_icd.insert(0, parient)
+
 
                 elif len(tokens[1]) == 2:
                     # 去掉小数点后得到会得到三层的父节点
@@ -129,7 +133,9 @@ def build_tree(filepath):
                     parient_child.append((tokens[0], icd[:-1]))  # （E939，E939.5）
                     hier_icd.insert(0, tokens[0])
                     parient=findrange(tokens[0], level2_V, parient_child)
-                    hier_icd.insert(0, parient)
+                    if parient!=False:
+                        hier_icd.insert(0, parient)
+
         else:
             # 先判断是否包含小数点：
             if '.' in icd:
@@ -141,7 +147,9 @@ def build_tree(filepath):
                     hier_icd.insert(0, tokens[0])
                     # 找到E824 对应的范围
                     parient=findrange(tokens[0], level2, parient_child)
-                    hier_icd.insert(0, parient)
+                    if parient!=False:
+                        hier_icd.insert(0, parient)
+
                 elif len(tokens[1]) == 2:
                     # 去掉小数点后得到会得到三层的父节点
                     parient_child.append((icd[:-1], icd))  # （E939.5，E939.58）
@@ -149,7 +157,9 @@ def build_tree(filepath):
                     parient_child.append((tokens[0], icd[:-1]))  # （E939，E939.5）
                     hier_icd.insert(0, tokens[0])
                     parient=findrange(tokens[0], level2, parient_child)
-                    hier_icd.insert(0, parient)
+                    if parient!=False:
+                        hier_icd.insert(0, parient)
+
         if icd not in hier_icds:
             hier_icds[icd]=hier_icd
 
@@ -183,6 +193,17 @@ def build_tree(filepath):
             adj[node2id.get(row[0])][node2id.get(row[1])]=1
             parient_child_new.append([node2id.get(row[0]),node2id.get(row[1])])
 
+    #将root与每个二级节点建立关联
+
+    for item in level2_parient:
+        adj[node2id.get('ROOT')][node2id.get(item)]=1
+
+    # 所有节点都至少有一个孩子节点，即pad节点
+    #这样确保 每一行都至少有一个孩子
+    # for node,id in node2id.items():
+    #     adj[id][node2id.get('PAD')]=1
+
+
     level2_parient_new = []
     for parient in level2_parient:
         level2_parient_new.append(node2id.get(parient))
@@ -209,7 +230,7 @@ def build_tree(filepath):
         hier_icdIds=[node2id.get(item) for item in hier_icd]
         hier_dicts[icdId]=hier_icdIds
     # print('hier_dicts：',hier_dicts)
-    return parient_child_new,[level2_parient],leafNode,adj,node2id,hier_dicts
+    return parient_child_new,level2_parient,leafNode,adj,node2id,hier_dicts
 
 def generate_graph(parient_child,node2id):
     import networkx as nx

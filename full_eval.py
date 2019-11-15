@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support, average_precision_score, \
     roc_auc_score, precision_score, recall_score
-
+from keras.utils import to_categorical
 
 thres = 0.5
 
@@ -59,8 +59,8 @@ def full_evaluate(pred, gold, thres=0.5):
     pred = np.array(pred)
     gold = np.array(gold)
     #print(pred)
-    # print('pred:',pred)
-    # print('gold:',gold)
+    # print('pred:',pred.shape)
+    # print('gold:',gold.shape)
     micro_p, micro_r, micro_f1 = f1_score(pred, gold, thres, average='micro')
     macro_p,macro_r,macro_f1= f1_score(pred, gold, thres, average='macro')
 
@@ -90,3 +90,34 @@ def jaccrad(predList, referList):  # terms_reference为源句子，terms_model�
     fenmu = len(grams_model) + len(grams_reference) - temp  # 并集
     jaccard_coefficient = temp*1.0 / fenmu  # 交集
     return jaccard_coefficient
+
+
+
+def process_labels(predHierLabels,labels,args):
+    predicted_labels = []
+    oneHot_predicted_labels=[]
+    oneHot_trueLabels=[]
+    for sample, label in zip(predHierLabels, labels):
+        #print('sample:',[args.id2node.get(item) for row in sample for item in row])
+        #[row.reverse() for row in sample]
+        # next(x for x in row if x >0) for row in sample)
+        #pred = [next(x for x in row if x > 0) for row in sample]
+        # print('sample:',sample)
+        #print('pred:', [args.id2node.get(item) for item in pred])
+        pred = [[i for i in row if i > 0][-1] for row in sample]
+        #print('label:',[args.id2node.get(item) for item in label])
+        pred = list(set(pred))
+        label = list(set(label))
+        predicted_labels.append(pred)
+
+        pred = np.sum(to_categorical(pred, num_classes=len(args.node2id)),axis=0)
+        label = np.sum(to_categorical(label, num_classes=len(args.node2id)),axis=0)
+        oneHot_predicted_labels.append(pred.tolist())
+        oneHot_trueLabels.append(label.tolist())
+
+    # 计算Jaccard
+    batchJaccard = [jaccrad(pred, label) for pred, label in zip(predicted_labels, labels)]
+    avgJaccard = sum(batchJaccard) * 1.0 / len(batchJaccard)
+
+    return oneHot_predicted_labels,oneHot_trueLabels,avgJaccard
+

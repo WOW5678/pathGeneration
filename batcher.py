@@ -16,8 +16,8 @@ class GenBatcher(object):
 
         self.ehr_queue=self.fill_example_queue()
         # 分割训练集，验证集和测试集
-        self.train_data,self.valid_data=train_test_split(self.ehr_queue,test_size=(1.0/3))
-        self.valid_data,self.test_data=train_test_split(self.valid_data,test_size=(1.0/3))
+        self.train_data,self.valid_data=train_test_split(self.ehr_queue,test_size=(1/3.0))
+        self.valid_data,self.test_data=train_test_split(self.valid_data,test_size=(1.0/2))
 
         self.train_batches=self.create_batch(mode='train')
         self.valid_batches=self.create_batch(mode='valid')
@@ -73,7 +73,7 @@ class Example(object):
         self.ehr=[word2id.get(item,word2id.get('[UNK]')) for item in ehr.split()]
         self.ehr_len = len(self.ehr)
         #print('labels:',labels)
-        self.labels=[args.node2id.get(item) for item in labels.split(';')]
+        self.labels=[args.node2id.get(item) for item in labels.split(';') if len(item.strip())>0]
         self.hier_labels=[args.hier_dicts.get(item) for item in self.labels]
         #print('labels:',labels)
         self.label_len=len(labels)
